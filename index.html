@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>週報テキスト生成ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Noto+Sans+JP:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #334155;
+            margin-bottom: 0.25rem;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            background-color: #ffffff;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        textarea.input-field {
+            min-height: 80px;
+        }
+
+        .btn-secondary {
+            background-color: #f1f5f9;
+            color: #475569;
+            font-weight: 600;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background-color: #e2e8f0;
+        }
+
+        .preview-area {
+            font-family: 'Courier New', Courier, monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            background-color: #1e293b;
+            color: #f1f5f9;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background-color: #10b981;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            display: none;
+            z-index: 100;
+            animation: fadeIn 0.3s ease-out;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 1rem;
+        }
+
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-top: none;
+            border-radius: 0 0 0.5rem 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 20;
+            display: none;
+        }
+
+        .dropdown-item {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            color: #475569;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl font-bold text-slate-800">週報テキスト生成ツール</h1>
+            <p class="text-slate-500 mt-2">入力した内容をフォーマットされたテキストとして出力・復元します。</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column: Form -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
+                <div class="flex justify-between items-center mb-6 border-b pb-2">
+                    <h2 class="text-lg font-bold text-slate-700">入力項目</h2>
+                    <a href="https://seibidou.backlog.com/projects/RD2025" target="_blank" class="text-xs flex items-center text-blue-600 hover:text-blue-800 font-semibold transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Backlogを開く
+                    </a>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="form-label" for="details">詳細（状況・備考）</label>
+                        <textarea id="details" class="input-field" placeholder="進捗状況や備考を入力してください..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="risks">課題リスク</label>
+                        <textarea id="risks" class="input-field" placeholder="直面している課題や懸念点を入力してください..."></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="relative">
+                            <label class="form-label" for="progress">進捗 (%)</label>
+                            <input type="number" id="progress" class="input-field" min="0" max="100" value="0" autocomplete="off">
+                            <div id="progressDropdown" class="dropdown-list">
+                                <div class="dropdown-item" data-value="0">0%</div>
+                                <div class="dropdown-item" data-value="10">10%</div>
+                                <div class="dropdown-item" data-value="20">20%</div>
+                                <div class="dropdown-item" data-value="30">30%</div>
+                                <div class="dropdown-item" data-value="40">40%</div>
+                                <div class="dropdown-item" data-value="50">50%</div>
+                                <div class="dropdown-item" data-value="60">60%</div>
+                                <div class="dropdown-item" data-value="70">70%</div>
+                                <div class="dropdown-item" data-value="80">80%</div>
+                                <div class="dropdown-item" data-value="90">90%</div>
+                                <div class="dropdown-item" data-value="100">100%</div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="form-label" for="finishDate">完了日</label>
+                            <input type="date" id="finishDate" class="input-field mb-1">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] text-slate-400 font-normal">※完了した場合のみ入力</span>
+                                <button id="noneDateBtn" class="btn-secondary py-0.5 px-2 text-[10px]">無し</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label">チーム</label>
+                        <div class="flex gap-4 mt-1">
+                            <label class="flex items-center text-sm text-slate-600 cursor-pointer">
+                                <input type="radio" name="team" value="開発チーム" class="mr-2 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500" checked>
+                                開発チーム
+                            </label>
+                            <label class="flex items-center text-sm text-slate-600 cursor-pointer">
+                                <input type="radio" name="team" value="デザインチーム" class="mr-2 h-4 w-4 text-blue-600 border-slate-300 focus:ring-blue-500">
+                                デザインチーム
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="todo">その他ToDoなど</label>
+                        <textarea id="todo" class="input-field" placeholder="今後のタスクなど..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Preview -->
+            <div class="flex flex-col h-full">
+                <div class="flex flex-wrap justify-between items-end mb-4 gap-2">
+                    <h2 class="text-lg font-bold text-slate-700">生成テキスト</h2>
+                    <div class="flex gap-2">
+                        <button id="importOpenBtn" class="bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-3 rounded-lg flex items-center transition-colors text-sm shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                            インポート
+                        </button>
+                        <button id="copyBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-lg flex items-center transition-colors text-sm shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            コピー
+                        </button>
+                    </div>
+                </div>
+
+                <div id="preview" class="preview-area flex-grow overflow-auto min-h-[400px]">
+                    <!-- Text will be generated here -->
+                </div>
+                
+                <textarea id="hiddenCopyArea" class="opacity-0 absolute -z-10"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="importModal" class="modal-overlay">
+        <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-2xl">
+            <h3 class="text-xl font-bold text-slate-800 mb-4">テキストをインポート</h3>
+            <p class="text-sm text-slate-500 mb-4">生成されたテキストを以下に貼り付けてください。</p>
+            <textarea id="importTextArea" class="input-field min-h-[300px] mb-4 font-mono text-xs" placeholder="# ---------------------------------------------------------..."></textarea>
+            <div class="flex justify-end gap-3">
+                <button id="importCloseBtn" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">キャンセル</button>
+                <button id="importConfirmBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors">反映する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">コピーしました！</div>
+
+    <script>
+        // DOM Elements
+        const textInputs = ['details', 'risks', 'progress', 'finishDate', 'todo'];
+        const elements = {};
+        textInputs.forEach(id => elements[id] = document.getElementById(id));
+        
+        const previewElement = document.getElementById('preview');
+        const copyBtn = document.getElementById('copyBtn');
+        const hiddenCopyArea = document.getElementById('hiddenCopyArea');
+        const toast = document.getElementById('toast');
+        const noneDateBtn = document.getElementById('noneDateBtn');
+        const progressDropdown = document.getElementById('progressDropdown');
+
+        // Modal Elements
+        const importModal = document.getElementById('importModal');
+        const importOpenBtn = document.getElementById('importOpenBtn');
+        const importCloseBtn = document.getElementById('importCloseBtn');
+        const importConfirmBtn = document.getElementById('importConfirmBtn');
+        const importTextArea = document.getElementById('importTextArea');
+
+        // Helper to get radio value
+        function getTeamValue() {
+            return document.querySelector('input[name="team"]:checked')?.value || '開発チーム';
+        }
+
+        // Formatting function for date (Display)
+        function formatJapaneseDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            const y = date.getFullYear();
+            const m = date.getMonth() + 1;
+            const d = date.getDate();
+            return `${y}年${m}月${d}日`;
+        }
+
+        // Parsing function for date (Restore)
+        function parseJapaneseDate(dateStr) {
+            if (!dateStr || dateStr.trim() === '') return '';
+            const match = dateStr.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+            if (match) {
+                const y = match[1];
+                const m = match[2].padStart(2, '0');
+                const d = match[3].padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+            return '';
+        }
+
+        // Formatting detailed text with '#' prefix
+        function formatDetailedText(text) {
+            if (!text) return '';
+            return text.split('\n').map(line => `# ${line}`).join('\n');
+        }
+
+        // Main Generator Function
+        function updatePreview() {
+            const risksVal = elements.risks.value.trim();
+            const data = {
+                details: elements.details.value,
+                risks: risksVal || '無',
+                progress: elements.progress.value,
+                finishDate: formatJapaneseDate(elements.finishDate.value),
+                team: getTeamValue(),
+                todo: elements.todo.value
+            };
+
+            const formattedDetails = formatDetailedText(data.details);
+
+            const template = 
+`# ---------------------------------------------------------
+# 1 週報　詳細（状況・備考）欄
+${formattedDetails || '#'}
+# 2 課題リスク
+# ${data.risks}
+# 3 週報　進捗
+# ${data.progress || '0'}%
+# 4 週報　完了日
+# ${data.finishDate}
+# 5 チーム
+# ${data.team}
+# ---------------------------------------------------------
+▼　以下ToDo記入枠
+${data.todo || ''}`;
+
+            previewElement.textContent = template;
+        }
+
+        // None Date Handler
+        noneDateBtn.addEventListener('click', () => {
+            elements.finishDate.value = '';
+            updatePreview();
+        });
+
+        // Custom Dropdown for Progress
+        elements.progress.addEventListener('focus', () => {
+            progressDropdown.style.display = 'block';
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.relative')) {
+                progressDropdown.style.display = 'none';
+            }
+        });
+
+        progressDropdown.addEventListener('click', (e) => {
+            const item = e.target.closest('.dropdown-item');
+            if (item) {
+                elements.progress.value = item.dataset.value;
+                updatePreview();
+                progressDropdown.style.display = 'none';
+            }
+        });
+
+        // Import Logic
+        function performImport() {
+            const text = importTextArea.value;
+            if (!text) return;
+
+            const lines = text.split('\n');
+            let data = {
+                details: [],
+                risks: '',
+                progress: '0',
+                finishDate: '',
+                team: '開発チーム',
+                todo: []
+            };
+
+            let currentSection = '';
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+
+                if (line.includes('# 1 週報　詳細（状況・備考）欄')) {
+                    currentSection = 'details';
+                    continue;
+                } else if (line.includes('# 2 課題リスク')) {
+                    currentSection = 'risks';
+                    continue;
+                } else if (line.includes('# 3 週報　進捗')) {
+                    currentSection = 'progress';
+                    continue;
+                } else if (line.includes('# 4 週報　完了日')) {
+                    currentSection = 'finishDate';
+                    continue;
+                } else if (line.includes('# 5 チーム')) {
+                    currentSection = 'team';
+                    continue;
+                } else if (line.includes('▼　以下ToDo記入枠')) {
+                    currentSection = 'todo';
+                    continue;
+                }
+
+                if (currentSection === 'details') {
+                    if (line.startsWith('# ')) {
+                        if (line.length > 2) data.details.push(line.substring(2));
+                    }
+                } else if (currentSection === 'risks') {
+                    if (line.startsWith('# ')) {
+                        const val = line.substring(2).trim();
+                        data.risks = (val === '無') ? '' : val;
+                    }
+                } else if (currentSection === 'progress') {
+                    if (line.startsWith('# ')) {
+                        data.progress = line.substring(2).replace('%', '').trim();
+                    }
+                } else if (currentSection === 'finishDate') {
+                    if (line.startsWith('# ')) {
+                        data.finishDate = parseJapaneseDate(line.substring(2).trim());
+                    }
+                } else if (currentSection === 'team') {
+                    if (line.startsWith('# ')) {
+                        data.team = line.substring(2).trim();
+                    }
+                } else if (currentSection === 'todo') {
+                    if (!line.includes('---')) data.todo.push(line);
+                }
+            }
+
+            // Apply to form
+            elements.details.value = data.details.join('\n');
+            elements.risks.value = data.risks;
+            elements.progress.value = data.progress;
+            elements.finishDate.value = data.finishDate;
+            elements.todo.value = data.todo.join('\n');
+            
+            // Set radio button
+            const radio = document.querySelector(`input[name="team"][value="${data.team}"]`);
+            if (radio) radio.checked = true;
+
+            updatePreview();
+            closeModal();
+            showToast('インポートしました');
+        }
+
+        // Event Listeners for Real-time update
+        textInputs.forEach(id => {
+            elements[id].addEventListener('input', updatePreview);
+        });
+        document.querySelectorAll('input[name="team"]').forEach(radio => {
+            radio.addEventListener('change', updatePreview);
+        });
+
+        // Copy Functionality
+        copyBtn.addEventListener('click', () => {
+            const textToCopy = previewElement.textContent;
+            hiddenCopyArea.value = textToCopy;
+            hiddenCopyArea.select();
+            
+            try {
+                document.execCommand('copy');
+                showToast('コピーしました！');
+            } catch (err) {
+                console.error('Copy failed', err);
+            }
+        });
+
+        // Modal Handlers
+        importOpenBtn.addEventListener('click', () => {
+            importTextArea.value = '';
+            importModal.style.display = 'flex';
+        });
+
+        function closeModal() {
+            importModal.style.display = 'none';
+        }
+
+        importCloseBtn.addEventListener('click', closeModal);
+        importConfirmBtn.addEventListener('click', performImport);
+
+        function showToast(message) {
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 2000);
+        }
+
+        // Initial update
+        window.onload = updatePreview;
+    </script>
+</body>
+</html>
